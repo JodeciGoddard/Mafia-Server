@@ -18,7 +18,7 @@ app.use(cors());
 const PORT = process.env.PORT || 5000;
 
 app.get("/", (req, res) => {
-    res.send('Server is running');
+    res.send('Server is running on PORT: ' + PORT);
 });
 
 app.get("/getGames", (req, res) => {
@@ -30,29 +30,46 @@ io.on('connection', (socket) => {
 
     socket.on('disconnect', () => {
         console.log(`${socket.id} has disconnected`)
+
     })
 
-    socket.on('join-room', (roomId, user) => {
+    socket.on('join-room', (id, name) => {
         //once a new user connects
-        socket.join(roomId);
-        socket.to(roomId).emit('user-connected', user);
-        for (let i = 0; i < rooms.length; i++) {
-            if (rooms[i].id === roomId) {
-                rooms[i]['players'] = [...rooms[i]['players'], user];
+        socket.join(id);
+
+        // socket.to(roomId).emit('user-connected', user);
+
+        for (room of rooms) {
+
+            if (room.id == id) {
+
+                if (addPlayerToRoom(room, name)) {
+                    socket.emit('enter-room', room);
+                    break;
+                }
+
+
             }
+
+
         }
-        socket.emit('enter-room', roomId);
+
+
     })
 
     socket.on('createRoom', data => {
-        let room = { host: data.username, id: uuidV4(), players: [] }
+        let room = { host: data.username, id: uuidV4(), players: [], log: [] }
         rooms.push(room);
         console.log("rooms: ", rooms);
         socket.emit('room-created', room);
 
     })
 
-
+    socket.on('log', data => {
+        let room = addToLog(data.roomId, data.msg);
+        io.to(data.roomId).emit('room-update', room);
+        console.log("new room", room);
+    })
 
 });
 
@@ -61,4 +78,33 @@ io.on('connection', (socket) => {
 server.listen(PORT, () => {
     console.log(`Server listening on PORT: ${PORT}`);
 });
+
+function addToLog(roomId, msg) {
+    for (let i = 0; i < rooms.length; i++) {
+        if (rooms[i].id === roomId) {
+            rooms[i].log.push(msg);
+            return rooms[i];
+        }
+    }
+}
+
+function addPlayerToRoom(room, name) {
+
+    if (room.players.length == 0) {
+        room.players.push({ id: 0, name: name, image: '' });
+    } else {
+
+        for (player of room.players) {
+            if (player.name == name) false;
+        }
+
+        room.players.push({ id: room.players.length + 1, name: name, image: '' });
+
+    }
+
+    console.log("adding...... ", room.players);
+
+    return true;
+
+}
 
