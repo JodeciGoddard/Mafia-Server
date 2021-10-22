@@ -2,6 +2,7 @@ const app = require("express")();
 const server = require('http').createServer(app);
 const cors = require("cors");
 const { json } = require("express");
+const { emit } = require("process");
 const { v4: uuidV4 } = require('uuid');
 
 const io = require("socket.io")(server, {
@@ -11,100 +12,111 @@ const io = require("socket.io")(server, {
     }
 });
 
-let rooms = [];
-
-app.use(cors());
 
 const PORT = process.env.PORT || 5000;
+
+const allUsers = {}
+const rooms = {}
 
 app.get("/", (req, res) => {
     res.send('Server is running on PORT: ' + PORT);
 });
 
-app.get("/getGames", (req, res) => {
-    res.send(rooms);
-})
+io.on('connection', socket => {
 
-io.on('connection', (socket) => {
-    console.log(`${socket.id} has connected`);
+    //add user to list of users
+    if (!allUsers[socket.id]) {
+        allUsers[socket.id] = { id: socket.id };
+        console.log(`user connected: ${socket.id}`);
+    }
 
-    socket.on('disconnect', () => {
-        console.log(`${socket.id} has disconnected`)
+    //send the user a list of rooms on request
+    socket.on("get-rooms", data => {
+        socket.emit("sending-rooms", rooms);
+    })
+
+    socket.on('create-room', data => {
+        //creates the room in memory on the server
+        const roomId = createRoom(data.hostname);
+        allUsers[socket.id].room = roomId;
+
+        //Broadcast the event to ALL connected users
+        io.emit('room-created', rooms);
+
+        //send an event to the user that created the room
+        socket.emit("you-created-a-room", roomId);
+
+        console.log("new room created:", rooms);
+    });
+
+    socket.on('join-room', data => {
+        //put user in a channel with id=roomid
+        socket.join(data.roomId);
+
+        //update user info
+        allUsers[socket.id].room = data.roomId;
+        allUsers[socket.id].username = data.username;
+
+        //update room info
+        rooms[data.roomId].users.push(allUsers[socket.id]);
+
+        //broadcast to the room that new user joined
+        socket.broadcast.emit('user-joined-room', { id: socket.id, username: data.username });
+
+        //  console.log('joining..', data);
+    })
+
+    //handle request for the room
+    socket.on('get-room', roomId => {
+        //console.log("requested: ", roomId);
+        const room = rooms[roomId];
+
+        //check if the user is in the room it is requesting
+        if (allUsers[socket.id].room == roomId) {
+            socket.emit('sending-room', room);
+            console.log('correct room request');
+        } else {
+            console.log('illegal room request');
+        }
 
     })
 
-    socket.on('join-room', (id, name) => {
-        //once a new user connects
-        socket.join(id);
+    socket.on("sending signal", payload => {
+        io.to(payload.userToSignal).emit('user joined', { signal: payload.signal, callerId: payload.callerId });
+    });
 
-        // socket.to(roomId).emit('user-connected', user);
-
-        for (room of rooms) {
-
-            if (room.id == id) {
-
-                if (addPlayerToRoom(room, name)) {
-                    socket.emit('enter-room', room);
-                    break;
-                }
+    socket.on("returning signal", payload => {
+        io.to(payload.callerId).emit('receiving returned signal', { signal: payload.signal, id: socket.id });
+    })
 
 
-            }
-
-
+    socket.on('disconnect', () => {
+        //remove user from current room
+        let roomId = allUsers[socket.id].room;
+        if (roomId) {
+            let users = rooms[roomId].users.filter(user => user.id !== socket.id);
+            rooms[roomId].users = users;
         }
 
 
+        //remove user from 'allUsers'
+        delete allUsers[socket.id];
+
+        console.log(`disconnected: ${socket.id}`);
     })
 
-    socket.on('createRoom', data => {
-        let room = { host: data.username, id: uuidV4(), players: [], log: [] }
-        rooms.push(room);
-        console.log("rooms: ", rooms);
-        socket.emit('room-created', room);
 
-    })
 
-    socket.on('log', data => {
-        let room = addToLog(data.roomId, data.msg);
-        io.to(data.roomId).emit('room-update', room);
-        console.log("new room", room);
-    })
-
-});
-
+})
 
 
 server.listen(PORT, () => {
     console.log(`Server listening on PORT: ${PORT}`);
 });
 
-function addToLog(roomId, msg) {
-    for (let i = 0; i < rooms.length; i++) {
-        if (rooms[i].id === roomId) {
-            rooms[i].log.push(msg);
-            return rooms[i];
-        }
-    }
+
+function createRoom(host = 'default') {
+    const newRoomId = uuidV4();
+    rooms[newRoomId] = { host: host, id: newRoomId, users: [] };
+    return newRoomId;
 }
-
-function addPlayerToRoom(room, name) {
-
-    if (room.players.length == 0) {
-        room.players.push({ id: 0, name: name, image: '' });
-    } else {
-
-        for (player of room.players) {
-            if (player.name == name) false;
-        }
-
-        room.players.push({ id: room.players.length + 1, name: name, image: '' });
-
-    }
-
-    console.log("adding...... ", room.players);
-
-    return true;
-
-}
-
