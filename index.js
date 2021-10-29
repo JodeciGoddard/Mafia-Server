@@ -1,19 +1,27 @@
-const app = require("express")();
-const server = require('http').createServer(app);
-const cors = require("cors");
-const { json } = require("express");
-const { emit } = require("process");
-const { v4: uuidV4 } = require('uuid');
-
-const io = require("socket.io")(server, {
-    cors: {
-        origin: "*",
-        methods: ["GET", "POST"]
-    }
-});
-
+import express from 'express';
+import cors from 'cors';
+import { json } from 'express';
+//import { emit } from 'process';
+import { v4 as uuidv4 } from 'uuid';
+import { createServer } from 'http';
+import { Server } from 'socket.io';
 
 const PORT = process.env.PORT || 5000;
+
+const app = express();
+app.set('port', PORT);
+
+const httpServer = createServer(app);
+const io = new Server(httpServer,
+    {
+        cors: {
+            origin: "*",
+            methods: ["GET", "POST"]
+        }
+    }
+);
+
+
 
 const allUsers = {}
 const rooms = {}
@@ -110,13 +118,13 @@ io.on('connection', socket => {
 })
 
 
-server.listen(PORT, () => {
+httpServer.listen(PORT, () => {
     console.log(`Server listening on PORT: ${PORT}`);
 });
 
 
 function createRoom(host = 'default') {
-    const newRoomId = uuidV4();
+    const newRoomId = uuidv4();
     rooms[newRoomId] = { host: host, id: newRoomId, users: [] };
     return newRoomId;
 }
