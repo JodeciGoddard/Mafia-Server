@@ -6,6 +6,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 
+import User from "./src/User.js";
+
 const PORT = process.env.PORT || 5000;
 
 const app = express();
@@ -24,7 +26,7 @@ const io = new Server(httpServer,
 
 
 const allUsers = {}
-const rooms = {}
+const lobbies = {}
 
 app.get("/", (req, res) => {
     res.send('Server is running on PORT: ' + PORT);
@@ -32,29 +34,35 @@ app.get("/", (req, res) => {
 
 io.on('connection', socket => {
 
+    //create the user object
+    const u = new User(socket, "default");
+
     //add user to list of users
-    if (!allUsers[socket.id]) {
-        allUsers[socket.id] = { id: socket.id };
-        console.log(`user connected: ${socket.id}`);
+    if (!allUsers[u.userId]) {
+        allUsers[u.userId] = u;
+        console.log(`user connected: ${u.userId}`);
     }
 
-    //send the user a list of rooms on request
-    socket.on("get-rooms", data => {
-        socket.emit("sending-rooms", rooms);
+    //send the user a list of lobbies on request
+    socket.on("get-lobbies", data => {
+        socket.emit("sending-lobbies", lobbies);
     })
 
-    socket.on('create-room', data => {
+    socket.on('create-lobby', data => {
         //creates the room in memory on the server
-        const roomId = createRoom(data.hostname);
-        allUsers[socket.id].room = roomId;
+        const u = allUsers[socket.id];
+        u.name = data.username;
+        const lobby = u.createLobby(data.roomName);
+        lobbies[lobby.lobbyId] = lobby;
+
 
         //Broadcast the event to ALL connected users
-        io.emit('room-created', rooms);
+        io.emit('lobby-created', lobbies);
 
         //send an event to the user that created the room
-        socket.emit("you-created-a-room", roomId);
+        // socket.emit("you-created-a-room", roomId);
 
-        console.log("new room created:", rooms);
+        //console.log("you create a lobby: ", lobby);
     });
 
     socket.on('join-room', data => {
@@ -72,6 +80,34 @@ io.on('connection', socket => {
         socket.broadcast.emit('user-joined-room', { id: socket.id, username: data.username });
 
         //  console.log('joining..', data);
+    })
+
+    socket.on('join-lobby', data => {
+
+        //get user and lobby
+        const u = allUsers[socket.id];
+        u.name = data.username;
+        const lobby = lobbies[data.lobbyId];
+
+        if (u && lobby) {
+            lobby.addUser(u);
+            console.log(lobby);
+        }
+
+        socket.broadcast.emit('lobbies-updated', lobbies);
+        socket.emit('you-joined-lobby', lobby);
+    })
+
+    socket.on('remove-from-lobby', lobbyId => {
+        //get user and lobby
+        const u = allUsers[socket.id];
+        const lobby = lobbies[lobbyId];
+
+        if (u && lobby) {
+            lobby.removeUser(u);
+        }
+
+        socket.broadcast.emit('lobbies-updated', lobbies);
     })
 
     //handle request for the room
