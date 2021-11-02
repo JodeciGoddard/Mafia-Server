@@ -125,6 +125,15 @@ io.on('connection', socket => {
 
     })
 
+    socket.on('start-game', (lobbyId) => {
+        const lobby = lobbies[lobbyId];
+        const u = allUsers[socket.id];
+
+        if (lobby.hostname == u.name) {
+            lobby.createGame();
+        }
+    })
+
     socket.on("sending signal", payload => {
         io.to(payload.userToSignal).emit('user joined', { signal: payload.signal, callerId: payload.callerId });
     });

@@ -6,6 +6,7 @@ class User {
         this.name = name;
         this.socket = socket;
         this.userId = socket.id;
+
     }
 
     createLobby(lobbyName = 'default') {

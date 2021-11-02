@@ -1,4 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
+import Game from './Game.js';
 
 class Lobby {
 
@@ -35,7 +36,8 @@ class Lobby {
     }
 
     createGame() {
-        console.log('create a new game based on the users in this lobby');
+        this.game = new Game(this.users);
+        console.log('Game created');
     }
 
 
