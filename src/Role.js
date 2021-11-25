@@ -7,18 +7,18 @@ class Role {
     }
 
     initailise() {
-        switch (type) {
+        switch (this.type) {
             case "mafia":
                 this.description = "This is mafia";
                 break;
             case "doctor":
-                this.description = "";
+                this.description = "This is doc";
                 break;
             case "cop":
-                this.description = "";
+                this.description = "This is cop";
                 break;
             case "civilian":
-                this.description = "";
+                this.description = "This is a civi";
                 break;
         }
     }

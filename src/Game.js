@@ -1,4 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
+import Player from './Player.js';
+import Role from './Role.js';
+import Room from './Room.js';
 
 class Game {
 
@@ -10,6 +13,9 @@ class Game {
         this.initialisePlayers(users);
 
         //create array of rooms
+        this.rooms = [];
+        this.initialiseRooms();
+
         this.status = "pregame";
         this.gameState = 'Day';
         //create timer
@@ -19,11 +25,12 @@ class Game {
     initialisePlayers(users) {
         const roles = this.randomiseRoles(users.length);
         if (roles) {
-            for (role of roles) {
-                // const player = new Player(user.id, user.username, role);
-                // this.players.push(player);
+            for (let i = 0; i < users.length; i++) {
+                let player = new Player(i, users[i], users[i].name, new Role(roles[i]));
+                this.players.push(player);
             }
-            console.log("Roles: ", roles);
+            console.log("players: ", this.players);
+
         } else {
             console.log("Not enough players");
         }
@@ -31,7 +38,6 @@ class Game {
     }
 
     randomiseRoles(numOfPlayers) {
-
 
         if (numOfPlayers < 5) return false;
 
@@ -77,6 +83,16 @@ class Game {
         result.sort(() => .5 - Math.random());
 
         return result;
+
+    }
+
+    initialiseRooms() {
+        //create the mafia room
+        this.rooms.push(new Room("mafia room"));
+
+        //create the townhall
+        this.rooms.push(new Room("town hall"));
+
 
     }
 
