@@ -65,22 +65,22 @@ io.on('connection', socket => {
         //console.log("you create a lobby: ", lobby);
     });
 
-    socket.on('join-room', data => {
-        //put user in a channel with id=roomid
-        socket.join(data.roomId);
+    // socket.on('join-room', data => {
+    //     //put user in a channel with id=roomid
+    //     socket.join(data.roomId);
 
-        //update user info
-        allUsers[socket.id].room = data.roomId;
-        allUsers[socket.id].username = data.username;
+    //     //update user info
+    //     allUsers[socket.id].room = data.roomId;
+    //     allUsers[socket.id].username = data.username;
 
-        //update room info
-        rooms[data.roomId].users.push(allUsers[socket.id]);
+    //     //update room info
+    //     rooms[data.roomId].users.push(allUsers[socket.id]);
 
-        //broadcast to the room that new user joined
-        socket.broadcast.emit('user-joined-room', { id: socket.id, username: data.username });
+    //     //broadcast to the room that new user joined
+    //     socket.broadcast.emit('user-joined-room', { id: socket.id, username: data.username });
 
-        //  console.log('joining..', data);
-    })
+    //     //  console.log('joining..', data);
+    // })
 
     socket.on('join-lobby', data => {
 
@@ -91,11 +91,16 @@ io.on('connection', socket => {
 
         if (u && lobby) {
             lobby.addUser(u);
-            console.log(lobby);
+            //console.log(lobby);
         }
 
-        socket.broadcast.emit('lobbies-updated', lobbies);
-        socket.emit('you-joined-lobby', lobby);
+        const jsonLobbies = {};
+        for (let lbbyId in lobbies) {
+            jsonLobbies[lbbyId] = lobbies[lbbyId].getData();
+        }
+
+        socket.broadcast.emit('lobbies-updated', jsonLobbies);
+        socket.emit('you-joined-lobby', lobby.getData());
     })
 
     socket.on('remove-from-lobby', lobbyId => {
@@ -111,19 +116,19 @@ io.on('connection', socket => {
     })
 
     //handle request for the room
-    socket.on('get-room', roomId => {
-        //console.log("requested: ", roomId);
-        const room = rooms[roomId];
+    // socket.on('get-room', roomId => {
+    //     //console.log("requested: ", roomId);
+    //     const room = rooms[roomId];
 
-        //check if the user is in the room it is requesting
-        if (allUsers[socket.id].room == roomId) {
-            socket.emit('sending-room', room);
-            console.log('correct room request');
-        } else {
-            console.log('illegal room request');
-        }
+    //     //check if the user is in the room it is requesting
+    //     if (allUsers[socket.id].room == roomId) {
+    //         socket.emit('sending-room', room);
+    //         console.log('correct room request');
+    //     } else {
+    //         console.log('illegal room request');
+    //     }
 
-    })
+    // })
 
     socket.on('start-game', (lobbyId) => {
         const lobby = lobbies[lobbyId];
@@ -133,6 +138,16 @@ io.on('connection', socket => {
             lobby.createGame();
         }
     })
+
+    socket.on("get-game-info", gameId => {
+        let data = getGameData(socket.id, gameId);
+        if (data !== false) {
+            socket.emit('sending-game', data);
+            //console.log('correct game request');
+        } else {
+            console.log("illegal game data request");
+        }
+    });
 
     socket.on("sending signal", payload => {
         io.to(payload.userToSignal).emit('user joined', { signal: payload.signal, callerId: payload.callerId });
@@ -168,8 +183,24 @@ httpServer.listen(PORT, () => {
 });
 
 
-function createRoom(host = 'default') {
-    const newRoomId = uuidv4();
-    rooms[newRoomId] = { host: host, id: newRoomId, users: [] };
-    return newRoomId;
+// function createRoom(host = 'default') {
+//     const newRoomId = uuidv4();
+//     rooms[newRoomId] = { host: host, id: newRoomId, users: [] };
+//     return newRoomId;
+// }
+
+function getGameData(id, gameId) {
+    //check which lobby the user is in
+    for (let lobbyId in lobbies) {
+        let lobby = lobbies[lobbyId];
+        if (lobby.isUserInLobby(id)) {
+            let game = lobby.game;
+            if (game.gameId == gameId) {
+                //console.log("emitting: ", game.getData())
+                return game.getData();
+            }
+        }
+    }
+
+    return false;
 }

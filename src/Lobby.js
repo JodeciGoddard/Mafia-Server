@@ -18,7 +18,7 @@ class Lobby {
             if (u.userId == user.userId) return false;
         }
 
-        this.users.push(user.getData());
+        this.users.push(user);
         console.log(`${user.name} has been added to lobby ${this.lobbyId}`);
         return true;
     }
@@ -38,6 +38,30 @@ class Lobby {
     createGame() {
         this.game = new Game(this.users);
         console.log('Game created');
+    }
+
+    getData() {
+        const jsonUsers = [];
+        for (let user of this.users) {
+            jsonUsers.push(user.getData());
+        }
+        return {
+            lobbyId: this.lobbyId,
+            hostname: this.hostname,
+            lobbyName: this.lobbyName,
+            users: jsonUsers,
+            game: this.game,
+        }
+    }
+
+    isUserInLobby(userId) {
+        for (let user of this.users) {
+            if (user.userId == userId) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
 

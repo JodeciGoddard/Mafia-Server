@@ -13,7 +13,8 @@ class Room {
 
     add(player) {
         if (player) {
-            this.members.push(player);
+            this.members.push(player.getPlayer());
+            player.user.socket.join(this.roomId);
             player.user.socket.emit('joined-channel', this.roomId);
         }
     }

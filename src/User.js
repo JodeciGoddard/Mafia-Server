@@ -19,6 +19,10 @@ class User {
             userId: this.userId,
         }
     }
+
+    joinGame(gameId) {
+        this.socket.emit("join-game", gameId);
+    }
 }
 
 export default User;

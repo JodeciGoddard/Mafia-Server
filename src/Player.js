@@ -13,7 +13,7 @@ class Player {
     getPlayer() {
         return {
             playerId: this.playerId,
-            user: this.user,
+            user: this.user.getData(),
             name: this.name,
             status: this.status,
         }

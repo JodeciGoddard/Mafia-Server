@@ -7,6 +7,7 @@ class Game {
 
     constructor(users) {
         this.gameId = uuidv4();
+        this.users = users;
 
         //create array of players
         this.players = [];
@@ -29,7 +30,8 @@ class Game {
                 let player = new Player(i, users[i], users[i].name, new Role(roles[i]));
                 this.players.push(player);
             }
-            console.log("players: ", this.players);
+            // console.log("players: ", this.players);
+            console.log(`${users.length} given roles`);
 
         } else {
             console.log("Not enough players");
@@ -93,7 +95,48 @@ class Game {
         //create the townhall
         this.rooms.push(new Room("town hall"));
 
+        //get all players in the townhall
+        for (const player of this.players) {
+            this.joinRoom(player, "town hall");
+        }
 
+        //tell all users to navigate to game
+        for (const user of this.users) {
+            user.joinGame(this.gameId);
+            //console.log("user trying to join a game");
+        }
+
+
+    }
+
+    getData() {
+        let jsonUsers = [];
+        for (let user of this.users) {
+            jsonUsers.push(user.getData());
+        }
+
+        let jsonPlayers = [];
+        for (let player of this.players) {
+            jsonPlayers.push(player.getPlayer())
+        }
+        return {
+            gameId: this.gameId,
+            users: jsonUsers,
+            players: jsonPlayers,
+            rooms: this.rooms,
+            status: this.status,
+            gameState: this.gameState
+        }
+    }
+
+    joinRoom(player, room) {
+        //get the room
+        for (let rm of this.rooms) {
+            if (rm.roomName == room) {
+                //add user to socket channel
+                rm.add(player);
+            }
+        }
     }
 
 
